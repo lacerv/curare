@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111b21">
+<title>SecureChat P2P</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b141a;--bg2:#111b21;--bg3:#202c33;--input:#2a3942;
+  --accent:#00a884;--text:#e9edef;--muted:#8696a0;
+  --sent:#005c4b;--recv:#202c33;--border:#2f3b43;--danger:#f15c6d;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea{font-family:inherit;outline:none;border:none;background:none;color:var(--text)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:#374045;border-radius:3px}
+
+.auth-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at top,#1f2c33 0%,#0b141a 70%);padding:20px;z-index:100}
+.auth-card{background:var(--bg2);border-radius:16px;padding:32px 28px;width:100%;
+  max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.7)}
+.auth-logo{font-size:52px;text-align:center;margin-bottom:4px}
+.auth-card h1{text-align:center;font-size:26px;font-weight:600;letter-spacing:-.5px}
+.auth-sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:22px}
+.auth-tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--bg);padding:4px;border-radius:10px}
+.auth-tab{flex:1;padding:10px;border-radius:8px;color:var(--muted);font-size:13.5px;font-weight:600;transition:.2s}
+.auth-tab.active{background:var(--accent);color:#fff}
+.auth-form{display:flex;flex-direction:column;gap:10px}
+.auth-form input{background:var(--input);border-radius:10px;padding:13px 15px;font-size:15px;border:1.5px solid transparent;transition:.2s}
+.auth-form input:focus{border-color:var(--accent)}
+.btn-primary{background:var(--accent);color:#fff;padding:13px;border-radius:10px;font-size:15px;font-weight:600;transition:.15s}
+.btn-primary:hover{filter:brightness(1.12)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{background:var(--bg3);color:var(--text);padding:11px;border-radius:10px;font-size:14px;font-weight:500;transition:.15s;border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--input)}
+.btn-danger{background:transparent;color:var(--danger);padding:10px;border-radius:8px;font-size:13px;transition:.15s}
+.btn-danger:hover{background:rgba(241,92,109,.1)}
+.auth-error{color:var(--danger);font-size:12.5px;text-align:center;min-height:16px}
+.auth-note{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted);text-align:center;line-height:1.6}
+
+.app-screen{display:flex;height:100vh;width:100%}
+.sidebar{width:360px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:relative}
+.sidebar-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#00a884,#005c4b);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;user-select:none}
+.avatar.sm{width:36px;height:36px;font-size:14px}
+.my-info{flex:1;min-width:0}
+.my-name{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.my-status{font-size:11.5px;color:var(--accent)}
+.header-actions{display:flex;gap:2px}
+.icon-btn{width:34px;height:34px;border-radius:50%;font-size:17px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:.15s}
+.icon-btn:hover{background:var(--input);color:var(--text)}
+.search-box{padding:6px 10px;background:var(--bg2)}
+.search-box input{width:100%;background:var(--bg);padding:9px 14px;border-radius:8px;font-size:13.5px}
+.contact-list{list-style:none;overflow-y:auto;flex:1}
+.contact-item{display:flex;align-items:center;gap:12px;padding:9px 14px;cursor:pointer;transition:.12s;border-bottom:1px solid rgba(255,255,255,.02)}
+.contact-item:hover{background:var(--bg3)}
+.contact-item.active{background:var(--input)}
+.avatar-wrap{position:relative;flex-shrink:0}
+.online-dot{position:absolute;bottom:0;right:0;width:11px;height:11px;background:#25d366;border-radius:50%;border:2px solid var(--bg2)}
+.offline-dot{background:#8696a0!important}
+.contact-info{flex:1;min-width:0}
+.contact-name{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contact-email{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty-list{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
+
+.chat-panel{flex:1;display:flex;flex-direction:column;background:var(--bg);position:relative;min-width:0}
+.empty-chat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:10px;padding:20px;text-align:center}
+.empty-icon{font-size:80px;opacity:.25}
+.empty-chat h2{color:var(--text);font-weight:400;font-size:22px}
+.empty-chat p{font-size:13.5px}
+.chat-view{flex:1;display:flex;flex-direction:column;min-height:0}
+.chat-header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.back-btn{display:none;width:32px;height:32px;font-size:20px;color:var(--muted)}
+.chat-info{flex:1;min-width:0}
+.chat-name{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-status{font-size:11.5px;color:var(--muted)}
+.chat-status.online{color:#25d366}
+.messages{flex:1;overflow-y:auto;padding:16px 6%;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.msg{max-width:78%;padding:6px 10px 6px;border-radius:8px;font-size:14.5px;line-height:1.38;word-wrap:break-word;overflow-wrap:break-word;position:relative;margin-bottom:1px;box-shadow:0 1px 1px rgba(0,0,0,.18);animation:msgIn .18s ease-out}
+@keyframes msgIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.msg.sent{align-self:flex-end;background:var(--sent);border-bottom-right-radius:2px}
+.msg.received{align-self:flex-start;background:var(--recv);border-bottom-left-radius:2px}
+.msg-time{font-size:10.5px;color:rgba(233,237,239,.55);text-align:right;margin-top:2px;line-height:1}
+.msg .media{margin-top:5px;border-radius:6px;overflow:hidden;max-width:280px}
+.msg .media img,.msg .media video{display:block;width:100%;height:auto;border-radius:6px;max-height:340px;object-fit:cover}
+.msg .media audio{width:100%;margin-top:3px;border-radius:6px}
+.msg .media a{color:#53bdeb;text-decoration:underline;font-size:13px;word-break:break-all}
+.msg .media .loading{font-size:12px;color:var(--muted);padding:8px;text-align:center}
+.date-sep{align-self:center;background:var(--bg3);font-size:11.5px;color:var(--muted);padding:4px 10px;border-radius:8px;margin:10px 0 6px}
+
+.composer{display:flex;align-items:flex-end;gap:6px;padding:8px 12px;background:var(--bg2);border-top:1px solid var(--border)}
+.attach-btn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);cursor:pointer;transition:.15s}
+.attach-btn:hover{background:var(--input);color:var(--text)}
+.attach-btn.has-files{background:var(--accent);color:#fff}
+#messageInput{flex:1;background:var(--input);border-radius:10px;padding:10px 14px;font-size:15px;resize:none;max-height:120px;line-height:1.4;min-height:40px}
+.send-btn{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;transition:.15s}
+.send-btn:hover{filter:brightness(1.12)}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal.open{display:flex}
+.modal-card{background:var(--bg2);border-radius:14px;padding:24px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.7)}
+.modal-card h2{font-size:19px;margin-bottom:16px;font-weight:600}
+.modal-card label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;margin-top:14px}
+.modal-card textarea,.modal-card input[type=text]{width:100%;background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;font-family:monospace;border:1px solid var(--border);min-height:100px;resize:vertical}
+.modal-card input[type=text]{min-height:auto;font-family:inherit;font-size:14px}
+.modal-actions{display:flex;gap:8px;margin-top:18px;justify-content:flex-end;flex-wrap:wrap}
+.relay-status{font-size:12.5px;color:var(--muted);padding:8px 10px;background:var(--bg);border-radius:8px;margin-top:6px;font-family:monospace;word-break:break-all}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);color:var(--text);padding:11px 20px;border-radius:10px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:300;opacity:0;transition:.3s;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.error{background:#4a1f24;color:#f8b4bc}
+.spinner{width:16px;height:16px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .sidebar{width:100%}
+  .chat-panel{position:absolute;inset:0;z-index:10;display:none}
+  .chat-panel.open{display:flex}
+  .back-btn{display:flex;align-items:center;justify-content:center}
+  .messages{padding:12px 4%}
+}
+</style>
+</head>
+<body>
+
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">🔒</div>
+    <h1>SecureChat P2P</h1>
+    <p class="auth-sub">Mensajería cifrada sin servidores</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
+      <button class="auth-tab" data-tab="register">Registrarse</button>
+    </div>
+    <div id="loginForm" class="auth-form">
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn-primary" id="loginBtn">Entrar</button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+    <div id="registerForm" class="auth-form" style="display:none">
+      <input type="text" id="regUsername" placeholder="Nombre de usuario" autocomplete="nickname">
+      <input type="email" id="regEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="regPassword" placeholder="Contraseña (mín. 8 caracteres)" autocomplete="new-password">
+      <button class="btn-primary" id="registerBtn">Crear cuenta</button>
+      <div class="auth-error" id="registerError"></div>
+    </div>
+    <div class="auth-note">
+      🔐 Todas las claves se generan <strong>en tu dispositivo</strong>.<br>
+      Funciona offline. Tus mensajes nunca salen cifrados.
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" class="app-screen" style="display:none">
+  <aside class="sidebar">
+    <header class="sidebar-header">
+      <div class="avatar" id="myAvatar">?</div>
+      <div class="my-info">
+        <div class="my-name" id="myName">—</div>
+        <div class="my-status" id="myStatus">En línea</div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="UI.openAddContact()" title="Añadir contacto">＋</button>
+        <button class="icon-btn" onclick="UI.openSettings()" title="Ajustes">⚙</button>
+        <button class="icon-btn" onclick="Auth.logout()" title="Salir">⎋</button>
+      </div>
+    </header>
+    <div class="search-box">
+      <input type="text" id="searchUsers" placeholder="Buscar o filtrar contactos…" oninput="UI.renderContacts()">
+    </div>
+    <ul class="contact-list" id="contactList"></ul>
+  </aside>
+
+  <main class="chat-panel" id="chatPanel">
+    <div class="empty-chat" id="emptyChat">
+      <div class="empty-icon">💬</div>
+      <h2>SecureChat P2P</h2>
+      <p>Selecciona un contacto o añade uno nuevo</p>
+      <p style="font-size:12px;margin-top:8px">Sin servidores · Cifrado extremo a extremo · Offline-first</p>
+    </div>
+    <div class="chat-view" id="chatView" style="display:none">
+      <header class="chat-header">
+        <button class="back-btn" onclick="UI.closeChat()">←</button>
+        <div class="avatar sm" id="chatAvatar">?</div>
+        <div class="chat-info">
+          <div class="chat-name" id="chatName">—</div>
+          <div class="chat-status" id="chatStatus">Desconectado</div>
+        </div>
+        <button class="icon-btn" onclick="UI.exportConversation()" title="Exportar conversación">⤓</button>
+      </header>
+      <div class="messages" id="messages"></div>
+      <form class="composer" id="composer" onsubmit="Messages.send(event)">
+        <label for="fileInput" class="attach-btn" id="attachBtn" title="Adjuntar">📎</label>
+        <input type="file" id="fileInput" style="display:none" multiple onchange="Messages.onFilesSelected()">
+        <textarea id="messageInput" placeholder="Escribe un mensaje" rows="1"
+                  oninput="UI.autoGrow(this)" onkeydown="Messages.onKey(event)"></textarea>
+        <button type="submit" class="send-btn" title="Enviar">➤</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<div id="addContactModal" class="modal">
+  <div class="modal-card">
+    <h2>Añadir contacto</h2>
+    <label>Pega la "tarjeta de contacto" de la otra persona (JSON)</label>
+    <textarea id="contactInput" placeholder='{"uid":"...","username":"...","email":"...","publicKey":{...},"nostrPk":"..."}'></textarea>
+    <label>…o pega tu propia tarjeta para compartirla</label>
+    <textarea id="myCardOutput" readonly style="min-height:90px"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="UI.copyMyCard()">Copiar mi tarjeta</button>
+      <button class="btn-secondary" onclick="UI.closeModal('addContactModal')">Cerrar</button>
+      <button class="btn-primary" onclick="Contacts.importFromInput()">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="modal">
+  <div class="modal-card">
+    <h2>Ajustes y respaldo</h2>
+    <label>Estado del relay (Nostr)</label>
+    <div id="relayStatus" class="relay-status">Iniciando…</div>
+    <label>Exportar todas tus conversaciones + contactos (.scbundle)</label>
+    <div class="modal-actions" style="justify-content:flex-start;margin-top:8px">
+      <button class="btn-secondary" onclick="Bundles.exportAll()">📤 Exportar todo</button>
+    </div>
+    <label>Importar un .scbundle</label>
+    <input type="file" id="bundleInput" accept=".scbundle,.json" style="color:var(--muted);font-size:13px">
+    <div class="modal-actions" style="justify-content:flex-start;margin-top:8px">
+      <button class="btn-secondary" onclick="Bundles.importFromFile()">📥 Importar</button>
+    </div>
+    <label>Mi tarjeta de contacto (compártela por WhatsApp, email, USB…)</label>
+    <textarea id="myCardOutput2" readonly style="min-height:90px"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="UI.copyMyCard2()">Copiar</button>
+      <button class="btn-danger" onclick="Bundles.wipeDevice()">⚠ Borrar todo (local)</button>
+      <button class="btn-secondary" onclick="UI.closeModal('settingsModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+/* ==================================================================
+   1. UTILIDADES
+   ================================================================== */
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+const uid = () => 'u_' + Array.from(crypto.getRandomValues(new Uint8Array(9)))
+  .map(b => b.toString(16).padStart(2,'0')).join('');
+
+const b64 = {
+  from: ab => { const b = new Uint8Array(ab); let s='';
+    for (let i=0;i<b.length;i+=0x8000) s += String.fromCharCode.apply(null, b.subarray(i,i+0x8000));
+    return btoa(s); },
+  to: s => { const bin = atob(s); const u = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+};
+
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const fmtTime = ts => { const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); };
+const fmtDate = ts => new Date(ts).toLocaleDateString('es-ES',
+  {weekday:'long',day:'numeric',month:'long'});
+
+function toast(msg, isError=false) {
+  const el = $('toast');
+  el.textContent = msg; el.className = 'toast show' + (isError?' error':'');
+  clearTimeout(el._t); el._t = setTimeout(()=>el.className='toast', 3200);
+}
+
+/* ==================================================================
+   2. STORAGE (IndexedDB)
+   ================================================================== */
+const DB = {
+  _db: null,
+  async open() {
+    if (this._db) return this._db;
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('securechat_v1', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('accounts')) db.createObjectStore('accounts', {keyPath:'uid'});
+        if (!db.objectStoreNames.contains('contacts')) db.createObjectStore('contacts', {keyPath:'uid'});
+        if (!db.objectStoreNames.contains('messages')) db.createObjectStore('messages', {keyPath:'id'});
+        if (!db.objectStoreNames.contains('media'))    db.createObjectStore('media', {keyPath:'id'});
+      };
+      req.onsuccess = e => { this._db = e.target.result; res(this._db); };
+      req.onerror   = e => rej(e.target.error);
+    });
+  },
+  async _store(name, mode='readonly') {
+    const db = await this.open();
+    return db.transaction(name, mode).objectStore(name);
+  },
+  async get(store, key) {
+    const s = await this._store(store);
+    return new Promise((res, rej) => {
+      const r = s.get(key);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  async put(store, val) {
+    const s = await this._store(store, 'readwrite');
+    return new Promise((res, rej) => {
+      const r = s.put(val);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  async getAll(store) {
+    const s = await this._store(store);
+    return new Promise((res, rej) => {
+      const r = s.getAll();
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  async clear(store) {
+    const s = await this._store(store, 'readwrite');
+    return new Promise((res, rej) => {
+      const r = s.clear();
+      r.onsuccess = () => res(); r.onerror = () => rej(r.error);
+    });
+  }
+};
+
+/* ==================================================================
+   3. CRIPTOGRAFÍA
+   ================================================================== */
+const Crypto = {
+  async generateIdentity() {
+    return crypto.subtle.generateKey(
+      {name:'ECDH', namedCurve:'P-256'}, true, ['deriveKey','deriveBits']);
+  },
+  async deriveKEK(password, salt) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(password),
+      'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2', salt, iterations:100000, hash:'SHA-256'},
+      base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  },
+  async encryptPriv(privKey, kek) {
+    const jwk = await crypto.subtle.exportKey('jwk', privKey);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, kek,
+      enc.encode(JSON.stringify(jwk)));
+    return { iv: b64.from(iv), ct: b64.from(ct) };
+  },
+  async decryptPriv(encObj, kek) {
+    const pt = await crypto.subtle.decrypt(
+      {name:'AES-GCM', iv: b64.to(encObj.iv)}, kek, b64.to(encObj.ct));
+    const jwk = JSON.parse(dec.decode(pt));
+    return crypto.subtle.importKey('jwk', jwk,
+      {name:'ECDH', namedCurve:'P-256'}, false, ['deriveKey','deriveBits']);
+  },
+  async deriveShared(myPriv, theirPubJwk) {
+    const theirPub = await crypto.subtle.importKey('jwk', theirPubJwk,
+      {name:'ECDH', namedCurve:'P-256'}, false, []);
+    return crypto.subtle.deriveKey(
+      {name:'ECDH', public: theirPub}, myPriv,
+      {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  },
+  async encryptText(key, text) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(text));
+    const all = new Uint8Array(12 + ct.byteLength);
+    all.set(iv); all.set(new Uint8Array(ct), 12);
+    return b64.from(all.buffer);
+  },
+  async decryptText(key, b64str) {
+    const all = b64.to(b64str);
+    const iv = all.slice(0,12), ct = all.slice(12);
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+    return dec.decode(pt);
+  },
+  async encryptBlob(key, arrayBuffer) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, arrayBuffer);
+    const all = new Uint8Array(12 + ct.byteLength);
+    all.set(iv); all.set(new Uint8Array(ct), 12);
+    return all.buffer;
+  },
+  async decryptBlob(key, arrayBuffer) {
+    const all = new Uint8Array(arrayBuffer);
+    const iv = all.slice(0,12), ct = all.slice(12);
+    return crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  }
+};
+
+/* ==================================================================
+   4. ESTADO GLOBAL
+   ================================================================== */
+const State = {
+  user: null,
+  privKey: null,
+  contacts: {},
+  online: {},
+  currentChat: null,
+  pendingFiles: [],
+  peer: null,
+  peerReady: false,
+  peerConnections: {},
+  objectUrls: new Set(),
+  presenceTimer: null,
+};
+
+/* ==================================================================
+   5. NOSTR RELAY
+   ================================================================== */
+const Nostr = {
+  relays: [
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://relay.nostr.band',
+    'wss://nostr.mom',
+    'wss://relay.snort.social'
+  ],
+  pool: null, sk: null, pk: null, sub: null,
+  ready: false, tools: null, lastSince: 0,
+  _acksInFlight: new Set(),
+
+  async init() {
+    if (this.ready || !State.user) return;
+    try {
+      const tools = await import('https://esm.sh/nostr-tools@2.7.0');
+      const nip44 = await import('https://esm.sh/nostr-tools@2.7.0/nip44');
+      this.tools = { ...tools, nip44 };
+
+      const acc = await DB.get('accounts', State.user.uid);
+      if (!acc) return;
+
+      if (acc.nostrSk) {
+        this.sk = b64.to(acc.nostrSk);
+      } else {
+        this.sk = tools.generateSecretKey();
+        acc.nostrSk = b64.from(this.sk);
+        await DB.put('accounts', acc);
+      }
+      this.pk = tools.getPublicKey(this.sk);
+      State.user.nostrPk = this.pk;
+      if (acc.nostrPk !== this.pk) {
+        acc.nostrPk = this.pk;
+        await DB.put('accounts', acc);
+      }
+
+      this.pool = new tools.SimplePool();
+      this.lastSince = Math.floor(Date.now()/1000) - 60*60*24*30;
+      this.sub = this.pool.subscribeMany(
+        this.relays,
+        [{ kinds: [4], '#p': [this.pk], since: this.lastSince }],
+        { onevent: ev => this.onEvent(ev) }
+      );
+      this.ready = true;
+      this._refreshStatus();
+      setInterval(() => this.resub(), 120000);
+    } catch (e) {
+      console.warn('Nostr init failed:', e);
+      this.ready = false;
+      this._refreshStatus();
+    }
+  },
+
+  resub() {
+    try { this.sub?.close?.(); } catch(_){}
+    if (!this.pool || !this.pk) return;
+    this.sub = this.pool.subscribeMany(
+      this.relays,
+      [{ kinds: [4], '#p': [this.pk], since: this.lastSince }],
+      { onevent: ev => this.onEvent(ev) }
+    );
+  },
+
+  async onEvent(ev) {
+    if (ev.pubkey === this.pk) return;
+    this.lastSince = Math.max(this.lastSince, ev.created_at + 1);
+    try {
+      const { nip44 } = this.tools;
+      const convKey = nip44.getConversationKey(this.sk, ev.pubkey);
+      const plaintext = nip44.decrypt(ev.content, convKey);
+      const env = JSON.parse(plaintext);
+
+      // ACK
+      if (env.ack) {
+        if (this._acksInFlight.has(env.ack)) return;
+        this._acksInFlight.add(env.ack);
+        try {
+          const stored = await DB.get('messages', env.ack);
+          if (stored && !stored.delivered) {
+            stored.delivered = true;
+            await DB.put('messages', stored);
+            if (State.currentChat) UI.renderMessages();
+          }
+        } finally {
+          this._acksInFlight.delete(env.ack);
+        }
+        return;
+      }
+
+      // Mensaje
+      if (env.v !== 1 || !env.id || !env.from) return;
+      if (await DB.get('messages', env.id)) return;
+
+      if (env.fromCard && !State.contacts[env.from]) {
+        try { await Contacts.add(env.fromCard); UI.renderContacts(); } catch(_){}
+      }
+
+      const { fromCard, ...cleanEnv } = env;
+      await Messages.receive(cleanEnv);
+    } catch (e) {
+      console.warn('Nostr decrypt fail:', e);
+    }
+  },
+
+  async send(envelope, recipientNostrPk) {
+    if (!this.ready || !recipientNostrPk) return false;
+    try {
+      const { finalizeEvent, nip44 } = this.tools;
+      const convKey = nip44.getConversationKey(this.sk, recipientNostrPk);
+      const json = JSON.stringify({
+        v: 1,
+        ...envelope,
+        fromCard: {
+          uid: State.user.uid,
+          username: State.user.username,
+          email: State.user.email,
+          publicKey: State.user.publicKey,
+          nostrPk: this.pk,
+          peerId: 'sc-' + State.user.uid
+        }
+      });
+      const ct = nip44.encrypt(json, convKey);
+      const ev = finalizeEvent({
+        kind: 4,
+        created_at: Math.floor(Date.now()/1000),
+        tags: [['p', recipientNostrPk]],
+        content: ct
+      }, this.sk);
+      const results = await Promise.allSettled(this.pool.publish(this.relays, ev));
+      return results.some(r => r.status === 'fulfilled');
+    } catch (e) {
+      console.error('Nostr send fail:', e);
+      return false;
+    }
+  },
+
+  _refreshStatus() {
+    const el = $('relayStatus');
+    if (!el) return;
+    if (this.ready && this.pk) {
+      el.textContent = 'Conectado · ' + this.relays.length + ' relays · pk: ' + this.pk.slice(0,16) + '…';
+      el.style.color = 'var(--accent)';
+    } else {
+      el.textContent = 'No conectado (solo P2P)';
+      el.style.color = 'var(--danger)';
+    }
+  }
+};
+
+/* ==================================================================
+   6. AUTH
+   ================================================================== */
+const Auth = {
+  async register(username, email, password) {
+    if (!username || !email || password.length < 8)
+      throw new Error('Completa todos los campos (contraseña ≥8)');
+    const all = await DB.getAll('accounts');
+    if (all.some(a => a.email.toLowerCase() === email.toLowerCase()))
+      throw new Error('Ya existe una cuenta con ese email');
+
+    const kp = await Crypto.generateIdentity();
+    const pubJwk = await crypto.subtle.exportKey('jwk', kp.publicKey);
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const kek  = await Crypto.deriveKEK(password, salt);
+    const encPriv = await Crypto.encryptPriv(kp.privateKey, kek);
+
+    const account = {
+      uid: uid(), username, email, publicKey: pubJwk,
+      encPriv, salt: b64.from(salt), createdAt: Date.now()
+    };
+    await DB.put('accounts', account);
+    State.user = {uid: account.uid, email, username, publicKey: pubJwk};
+    State.privKey = kp.privateKey;
+    localStorage.setItem('sc_session', account.uid);
+    return account;
+  },
+
+  async login(email, password) {
+    const all = await DB.getAll('accounts');
+    const acc = all.find(a => a.email.toLowerCase() === email.toLowerCase());
+    if (!acc) throw new Error('No existe una cuenta con ese email');
+    const kek = await Crypto.deriveKEK(password, b64.to(acc.salt));
+    let privKey;
+    try { privKey = await Crypto.decryptPriv(acc.encPriv, kek); }
+    catch { throw new Error('Contraseña incorrecta'); }
+
+    State.user = {uid: acc.uid, email: acc.email, username: acc.username,
+                  publicKey: acc.publicKey, nostrPk: acc.nostrPk || null};
+    State.privKey = privKey;
+    localStorage.setItem('sc_session', acc.uid);
+    return acc;
+  },
+
+  async restore() {
+    const uidSaved = localStorage.getItem('sc_session');
+    if (!uidSaved) return false;
+    const acc = await DB.get('accounts', uidSaved);
+    if (!acc) { localStorage.removeItem('sc_session'); return false; }
+    return 'needs_password';
+  },
+
+  logout() {
+    if (State.peer) try { State.peer.destroy(); } catch(_){}
+    State.user = null; State.privKey = null; State.contacts = {};
+    State.online = {}; State.currentChat = null; State.pendingFiles = [];
+    State.peer = null; State.peerReady = false; State.peerConnections = {};
+    localStorage.removeItem('sc_session');
+    location.reload();
+  }
+};
+
+/* ==================================================================
+   7. CONTACTOS
+   ================================================================== */
+const Contacts = {
+  async loadAll() {
+    const list = await DB.getAll('contacts');
+    State.contacts = {};
+    for (const c of list) State.contacts[c.uid] = c;
+  },
+
+  async add(contact) {
+    if (!contact.uid || contact.uid === State.user.uid)
+      throw new Error('Contacto inválido');
+    if (State.contacts[contact.uid])
+      throw new Error('Ese contacto ya está añadido');
+    await DB.put('contacts', contact);
+    State.contacts[contact.uid] = contact;
+    Peer.checkPresence(contact.uid);
+  },
+
+  async importFromInput() {
+    try {
+      const raw = $('contactInput').value.trim();
+      if (!raw) { toast('Pega una tarjeta de contacto', true); return; }
+
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch { throw new Error('JSON inválido'); }
+
+      // Detectar si es un bundle (backup o conversación) y extraer tarjeta
+      const looksLikeBundle =
+        parsed && (Array.isArray(parsed.messages) ||
+                   Array.isArray(parsed.contacts) ||
+                   parsed.exportedBy || parsed.from);
+
+      if (looksLikeBundle) {
+        const sender = parsed.from || parsed.exportedBy;
+        if (sender && sender.uid && sender.publicKey) {
+          if (sender.uid === State.user.uid)
+            throw new Error('Esta tarjeta es tuya. Compártela con otra persona.');
+          parsed = sender;
+        } else if (Array.isArray(parsed.contacts) && parsed.contacts.length) {
+          const first = parsed.contacts.find(c => c.uid !== State.user.uid);
+          if (!first) throw new Error('El bundle no contiene contactos ajenos');
+          parsed = first;
+        } else {
+          throw new Error('Esto es un .scbundle, no una tarjeta. Usa Ajustes → "Importar un .scbundle" para restaurar contactos y mensajes.');
+        }
+      }
+
+      if (!parsed.uid || !parsed.publicKey || !parsed.username)
+        throw new Error('Tarjeta inválida: faltan uid, publicKey o username');
+      if (parsed.uid === State.user.uid)
+        throw new Error('No puedes añadirte a ti mismo');
+
+      await this.add({
+        uid: parsed.uid,
+        username: parsed.username,
+        email: parsed.email || '',
+        publicKey: parsed.publicKey,
+        nostrPk: parsed.nostrPk || null,
+        peerId: parsed.peerId || ('sc-' + parsed.uid)
+      });
+
+      $('contactInput').value = '';
+      UI.closeModal('addContactModal');
+      UI.renderContacts();
+      toast('Contacto añadido');
+    } catch (e) {
+      toast('Error: ' + e.message, true);
+    }
+  },
+
+  myCard() {
+    return JSON.stringify({
+      uid: State.user.uid,
+      username: State.user.username,
+      email: State.user.email,
+      publicKey: State.user.publicKey,
+      nostrPk: State.user.nostrPk || null,
+      peerId: 'sc-' + State.user.uid
+    }, null, 2);
+  }
+};
+
+/* ==================================================================
+   8. MENSAJES
+   ================================================================== */
+const Messages = {
+  _inflight: new Set(),
+
+  onFilesSelected() {
+    const inp = $('fileInput');
+    State.pendingFiles = Array.from(inp.files);
+    const btn = $('attachBtn');
+    if (State.pendingFiles.length) {
+      btn.textContent = `📎${State.pendingFiles.length}`;
+      btn.classList.add('has-files');
+    } else {
+      btn.textContent = '📎'; btn.classList.remove('has-files');
+    }
+  },
+
+  onKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(e); }
+  },
+
+  async send(event) {
+    if (event) event.preventDefault();
+    if (!State.currentChat || !State.privKey) return;
+    const text = $('messageInput').value.trim();
+    const files = State.pendingFiles.slice();
+    if (!text && !files.length) return;
+
+    const other = State.contacts[State.currentChat.uid];
+    if (!other) return;
+    const shared = await Crypto.deriveShared(State.privKey, other.publicKey);
+    const cid = this.convId(State.user.uid, other.uid);
+
+    try {
+      if (text) {
+        const ct = await Crypto.encryptText(shared, text);
+        const msg = {
+          id: uid(), cid,
+          from: State.user.uid, to: other.uid,
+          ts: Date.now(),
+          ciphertext: ct,
+          delivered: false
+        };
+        await DB.put('messages', msg);
+
+        const deliveredDirect = await Peer.tryDeliver(msg);
+        if (!deliveredDirect && other.nostrPk) {
+          const deliveredRelay = await Nostr.send(msg, other.nostrPk);
+          if (deliveredRelay) {
+            msg.delivered = true;
+            await DB.put('messages', msg);
+          }
+        }
+
+        UI.renderMessages();
+        $('messageInput').value = ''; $('messageInput').style.height = 'auto';
+      }
+
+      for (const file of files) {
+        const buf = await file.arrayBuffer();
+        const encBuf = await Crypto.encryptBlob(shared, buf);
+        const mediaId = uid();
+        await DB.put('media', { id: mediaId, blob: new Blob([encBuf]) });
+        const msg = {
+          id: uid(), cid,
+          from: State.user.uid, to: other.uid,
+          ts: Date.now(),
+          mediaId,
+          mediaType: file.type || 'application/octet-stream',
+          mediaName: file.name,
+          ciphertext: ''
+        };
+        await DB.put('messages', msg);
+        await Peer.tryDeliver(msg);
+      }
+      State.pendingFiles = [];
+      $('fileInput').value = '';
+      $('attachBtn').textContent = '📎';
+      $('attachBtn').classList.remove('has-files');
+      UI.renderMessages();
+    } catch (e) {
+      console.error(e); toast('Error al enviar: ' + e.message, true);
+    }
+  },
+
+  convId(a, b) { return [a, b].sort().join('__'); },
+
+  async loadConversation(otherUid) {
+    const cid = this.convId(State.user.uid, otherUid);
+    const all = await DB.getAll('messages');
+    return all.filter(m => m.cid === cid).sort((a,b) => a.ts - b.ts);
+  },
+
+  async receive(envelope) {
+    if (!envelope || !envelope.id) return;
+    if (this._inflight.has(envelope.id)) return;
+    this._inflight.add(envelope.id);
+    try {
+      const existing = await DB.get('messages', envelope.id);
+      if (existing) return;
+
+      const { mediaBlob, ...msgBase } = envelope;
+      const msg = { ...msgBase, delivered: true };
+      await DB.put('messages', msg);
+
+      if (mediaBlob && envelope.mediaId) {
+        await DB.put('media', { id: envelope.mediaId, blob: mediaBlob });
+      }
+
+      if (State.currentChat && State.currentChat.uid === envelope.from) {
+        UI.renderMessages();
+      } else {
+        toast('Nuevo mensaje de ' +
+          (State.contacts[envelope.from]?.username || 'desconocido'));
+      }
+    } finally {
+      this._inflight.delete(envelope.id);
+    }
+  }
+};
+
+/* ==================================================================
+   9. PEERJS
+   ================================================================== */
+const Peer = {
+  init() {
+    if (State.peer || !State.user) return;
+    try {
+      State.peer = new Peer('sc-' + State.user.uid, { debug: 1 });
+
+      State.peer.on('open', () => {
+        State.peerReady = true;
+        $('myStatus').textContent = 'En línea · P2P';
+        this.startPresenceLoop();
+      });
+
+      State.peer.on('error', err => {
+        console.warn('PeerJS:', err.type, err.message);
+        if (err.type === 'unavailable-id') {
+          toast('Ya hay otra sesión abierta con esta cuenta', true);
+        }
+        State.peerReady = false;
+        $('myStatus').textContent = 'Sin conexión P2P';
+      });
+
+      // Conexiones ENTRANTES: un ÚNICO data listener por conn
+      State.peer.on('connection', conn => {
+        const peerUid = conn.peer.replace('sc-','');
+
+        conn.on('data', data => this.onData(conn.peer, data));
+
+        conn.on('open', () => {
+          if (!State.peerConnections[peerUid]?.open) {
+            State.peerConnections[peerUid] = conn;
+          }
+          State.online[peerUid] = true;
+          UI.renderContacts();
+          UI.updateChatHeader();
+        });
+
+        conn.on('close', () => {
+          if (State.peerConnections[peerUid] === conn) {
+            delete State.peerConnections[peerUid];
+          }
+          State.online[peerUid] = false;
+          UI.renderContacts();
+          UI.updateChatHeader();
+        });
+      });
+    } catch (e) { console.warn('No PeerJS:', e); }
+  },
+
+  async checkPresence(contactUid) {
+    if (!State.peerReady || !State.peer) { State.online[contactUid] = false; return; }
+    const peerId = 'sc-' + contactUid;
+    if (State.peerConnections[contactUid]?.open) {
+      State.online[contactUid] = true; return;
+    }
+    try {
+      const conn = State.peer.connect(peerId, { reliable: true });
+      State.peerConnections[contactUid] = conn;
+      await new Promise((res, rej) => {
+        const t = setTimeout(() => rej(new Error('timeout')), 3500);
+        conn.on('open', () => { clearTimeout(t); res(); });
+        conn.on('error', e => { clearTimeout(t); rej(e); });
+      });
+      State.online[contactUid] = true;
+      conn.on('data', data => this.onData(peerId, data));
+      conn.on('close', () => {
+        if (State.peerConnections[contactUid] === conn) {
+          delete State.peerConnections[contactUid];
+        }
+        State.online[contactUid] = false;
+        UI.renderContacts(); UI.updateChatHeader();
+      });
+    } catch (e) {
+      State.online[contactUid] = false;
+    }
+    UI.renderContacts();
+    UI.updateChatHeader();
+  },
+
+  startPresenceLoop() {
+    clearInterval(State.presenceTimer);
+    State.presenceTimer = setInterval(() => {
+      if (!State.peerReady) return;
+      for (const uid of Object.keys(State.contacts)) this.checkPresence(uid);
+    }, 25000);
+  },
+
+  async tryDeliver(msg) {
+    if (!State.peerReady || !State.peer) return false;
+    const peerId = 'sc-' + msg.to;
+    let conn = State.peerConnections[msg.to];
+    if (!conn || !conn.open) {
+      try {
+        conn = State.peer.connect(peerId, { reliable: true });
+        State.peerConnections[msg.to] = conn;
+        await new Promise((res, rej) => {
+          const t = setTimeout(() => rej(new Error('timeout')), 4000);
+          conn.on('open', () => { clearTimeout(t); res(); });
+          conn.on('error', e => { clearTimeout(t); rej(e); });
+        });
+      } catch { return false; }
+    }
+    const payload = { ...msg };
+    if (msg.mediaId) {
+      const media = await DB.get('media', msg.mediaId);
+      if (media) payload.mediaBlob = media.blob;
+    }
+    try {
+      conn.send({ type: 'msg', payload });
+      const stored = await DB.get('messages', msg.id);
+      if (stored) { stored.delivered = true; await DB.put('messages', stored); }
+      return true;
+    } catch { return false; }
+  },
+
+  async onData(fromPeerId, data) {
+    const senderUid = fromPeerId.replace('sc-','');
+    if (data.type === 'msg') {
+      await Messages.receive(data.payload);
+      const sender = State.contacts[senderUid];
+      if (sender?.nostrPk && data.payload?.id) {
+        try { await Nostr.send({ ack: data.payload.id, ts: Date.now() }, sender.nostrPk); }
+        catch(_){}
+      }
+    } else if (data.type === 'ping') {
+      const conn = State.peerConnections[senderUid];
+      if (conn?.open) conn.send({ type: 'pong' });
+    }
+  }
+};
+
+/* ==================================================================
+   10. BUNDLES
+   ================================================================== */
+const Bundles = {
+  async exportAll() {
+    try {
+      const accounts = await DB.getAll('accounts');
+      const me = accounts.find(a => a.uid === State.user.uid);
+      if (!me) return;
+      const contacts = await DB.getAll('contacts');
+      const messages = await DB.getAll('messages');
+      const mediaItems = await DB.getAll('media');
+      const mediaMap = {};
+      for (const m of mediaItems) mediaMap[m.id] = await this.blobToB64(m.blob);
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        exportedBy: {
+          uid: me.uid, username: me.username, email: me.email,
+          publicKey: me.publicKey, nostrPk: me.nostrPk || null,
+          peerId: 'sc-' + me.uid
+        },
+        contacts,
+        messages: messages.map(m => ({ ...m,
+          mediaB64: m.mediaId ? mediaMap[m.mediaId] : undefined })),
+        media: mediaItems.map(m => ({ id: m.id }))
+      };
+      this.downloadJson(bundle, `securechat_${me.username}_${Date.now()}.scbundle`);
+      toast('Bundle exportado');
+    } catch (e) { toast('Error exportando: ' + e.message, true); }
+  },
+
+  async exportConversation(otherUid) {
+    try {
+      const other = State.contacts[otherUid];
+      if (!other) return;
+      const cid = Messages.convId(State.user.uid, otherUid);
+      const all = await DB.getAll('messages');
+      const msgs = all.filter(m => m.cid === cid);
+      const mediaMap = {};
+      for (const m of msgs) {
+        if (m.mediaId) {
+          const media = await DB.get('media', m.mediaId);
+          if (media) mediaMap[m.mediaId] = await this.blobToB64(media.blob);
+        }
+      }
+      const bundle = {
+        version: 1, exportedAt: Date.now(),
+        from: { uid: State.user.uid, username: State.user.username,
+                email: State.user.email,
+                publicKey: State.user.publicKey,
+                nostrPk: State.user.nostrPk || null,
+                peerId: 'sc-' + State.user.uid },
+        to:   { uid: other.uid, username: other.username,
+                email: other.email || '',
+                publicKey: other.publicKey,
+                nostrPk: other.nostrPk || null,
+                peerId: other.peerId || ('sc-' + other.uid) },
+        messages: msgs.map(m => ({ ...m,
+          mediaB64: m.mediaId ? mediaMap[m.mediaId] : undefined }))
+      };
+      this.downloadJson(bundle, `conv_${other.username}_${Date.now()}.scbundle`);
+      toast('Conversación exportada');
+    } catch (e) { toast('Error: ' + e.message, true); }
+  },
+
+  async importFromFile() {
+    const inp = $('bundleInput');
+    const file = inp.files[0];
+    if (!file) { toast('Selecciona un .scbundle', true); return; }
+
+    try {
+      const text = await file.text();
+      let bundle;
+      try { bundle = JSON.parse(text); }
+      catch { throw new Error('JSON inválido — ¿seguro que es un .scbundle?'); }
+      if (!bundle || typeof bundle !== 'object') throw new Error('Formato inválido');
+
+      const hasContacts = Array.isArray(bundle.contacts);
+      const hasMessages = Array.isArray(bundle.messages);
+      if (!hasContacts && !hasMessages)
+        throw new Error('El bundle no contiene ni contactos ni mensajes');
+
+      let contactsAdded = 0;
+      let messagesImported = 0;
+      const me = State.user.uid;
+
+      // 1) Contactos explícitos (backup completo)
+      if (hasContacts) {
+        for (const c of bundle.contacts) {
+          if (!c || !c.uid || !c.publicKey) continue;
+          if (c.uid === me) continue;
+          if (State.contacts[c.uid]) continue;
+          try {
+            await Contacts.add({
+              uid: c.uid,
+              username: c.username || c.uid.slice(0, 8),
+              email: c.email || '',
+              publicKey: c.publicKey,
+              nostrPk: c.nostrPk || null,
+              peerId: c.peerId || ('sc-' + c.uid)
+            });
+            contactsAdded++;
+          } catch (e) {
+            console.warn('No se pudo añadir contacto', c.uid, e.message);
+          }
+        }
+      }
+
+      // 2) Remitente: bundle.from (conv) o bundle.exportedBy (backup)
+      const sender = bundle.from || bundle.exportedBy;
+      if (sender && sender.uid && sender.publicKey
+          && sender.uid !== me
+          && !State.contacts[sender.uid]) {
+        try {
+          await Contacts.add({
+            uid: sender.uid,
+            username: sender.username || sender.uid.slice(0, 8),
+            email: sender.email || '',
+            publicKey: sender.publicKey,
+            nostrPk: sender.nostrPk || null,
+            peerId: sender.peerId || ('sc-' + sender.uid)
+          });
+          contactsAdded++;
+        } catch (e) {
+          console.warn('No se pudo añadir remitente', e.message);
+        }
+      }
+
+      // 3) Mensajes
+      const messages = hasMessages ? bundle.messages : [];
+      for (const m of messages) {
+        if (!m || !m.id || !m.from || !m.to) continue;
+        if (m.from !== me && m.to !== me) continue;
+        if (await DB.get('messages', m.id)) continue;
+        const msg = { ...m };
+        if (m.mediaB64 && m.mediaId) {
+          await DB.put('media', { id: m.mediaId, blob: this.b64ToBlob(m.mediaB64) });
+          delete msg.mediaB64;
+        }
+        await DB.put('messages', msg);
+        messagesImported++;
+      }
+
+      inp.value = '';
+      UI.closeModal('settingsModal');
+      UI.renderContacts();
+      if (State.currentChat) UI.renderMessages();
+
+      if (!contactsAdded && !messagesImported) {
+        toast('Nada nuevo que importar (¿ya lo tenías?)');
+      } else {
+        const parts = [];
+        if (contactsAdded) parts.push(`${contactsAdded} contacto${contactsAdded>1?'s':''}`);
+        if (messagesImported) parts.push(`${messagesImported} mensaje${messagesImported>1?'s':''}`);
+        toast('Importado: ' + parts.join(' y '));
+      }
+    } catch (e) {
+      console.error(e);
+      toast('Error importando: ' + e.message, true);
+    }
+  },
+
+  async blobToB64(blob) {
+    const buf = await blob.arrayBuffer();
+    return b64.from(buf);
+  },
+  b64ToBlob(str) {
+    const u = b64.to(str);
+    return new Blob([u]);
+  },
+  downloadJson(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+
+  async wipeDevice() {
+    if (!confirm('¿Borrar TODAS las cuentas, contactos y mensajes de este dispositivo? Esta acción no se puede deshacer.')) return;
+    for (const s of ['accounts','contacts','messages','media']) await DB.clear(s);
+    localStorage.removeItem('sc_session');
+    location.reload();
+  }
+};
+
+/* ==================================================================
+   11. UI
+   ================================================================== */
+const UI = {
+  _rendering: false,
+  _pendingRender: false,
+
+  autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  },
+
+  openModal(id) { $(id).classList.add('open'); },
+  closeModal(id) { $(id).classList.remove('open'); },
+
+  openAddContact() {
+    $('myCardOutput').value = Contacts.myCard();
+    this.openModal('addContactModal');
+  },
+
+  openSettings() {
+    $('myCardOutput2').value = Contacts.myCard();
+    Nostr._refreshStatus();
+    this.openModal('settingsModal');
+  },
+
+  copyMyCard() {
+    navigator.clipboard.writeText(Contacts.myCard())
+      .then(() => toast('Tarjeta copiada'))
+      .catch(() => toast('No se pudo copiar', true));
+  },
+  copyMyCard2() {
+    navigator.clipboard.writeText(Contacts.myCard())
+      .then(() => toast('Tarjeta copiada'))
+      .catch(() => toast('No se pudo copiar', true));
+  },
+
+  exportConversation() {
+    if (!State.currentChat) return;
+    Bundles.exportConversation(State.currentChat.uid);
+  },
+
+  renderContacts() {
+    const list = $('contactList');
+    const q = ($('searchUsers').value || '').toLowerCase();
+    list.innerHTML = '';
+    const arr = Object.values(State.contacts)
+      .sort((a,b) => a.username.localeCompare(b.username));
+    if (!arr.length) {
+      list.innerHTML = '<li class="empty-list">Sin contactos aún.<br>Añade uno con el botón ＋<br>o importa un .scbundle.</li>';
+      return;
+    }
+    for (const c of arr) {
+      if (q && !c.username.toLowerCase().includes(q) && !(c.email||'').toLowerCase().includes(q)) continue;
+      const online = !!State.online[c.uid];
+      const li = document.createElement('li');
+      li.className = 'contact-item' + (State.currentChat?.uid === c.uid ? ' active' : '');
+      li.innerHTML = `
+        <div class="avatar-wrap">
+          <div class="avatar">${escapeHtml(c.username[0]?.toUpperCase() || '?')}</div>
+          <span class="${online?'online-dot':'online-dot offline-dot'}"></span>
+        </div>
+        <div class="contact-info">
+          <div class="contact-name">${escapeHtml(c.username)}</div>
+          <div class="contact-email">${escapeHtml(c.email || c.uid.slice(0,12))}</div>
+        </div>`;
+      li.onclick = () => this.openChat(c.uid);
+      list.appendChild(li);
+    }
+  },
+
+  openChat(contactUid) {
+    const c = State.contacts[contactUid];
+    if (!c) return;
+    State.currentChat = c;
+    $('emptyChat').style.display = 'none';
+    $('chatView').style.display = 'flex';
+    $('chatPanel').classList.add('open');
+    $('chatName').textContent = c.username;
+    $('chatAvatar').textContent = (c.username[0]||'?').toUpperCase();
+    this.updateChatHeader();
+    this.renderContacts();
+    this.renderMessages();
+    Peer.checkPresence(contactUid);
+  },
+
+  closeChat() {
+    $('chatPanel').classList.remove('open');
+    State.currentChat = null;
+  },
+
+  updateChatHeader() {
+    if (!State.currentChat) return;
+    const online = !!State.online[State.currentChat.uid];
+    const el = $('chatStatus');
+    el.textContent = online ? 'En línea' : 'Desconectado';
+    el.className = 'chat-status' + (online ? ' online' : '');
+  },
+
+  // Lock anti-duplicado
+  async renderMessages() {
+    if (!State.currentChat) return;
+    if (this._rendering) { this._pendingRender = true; return; }
+    this._rendering = true;
+    try {
+      do {
+        this._pendingRender = false;
+        await this._doRenderMessages();
+      } while (this._pendingRender);
+    } finally {
+      this._rendering = false;
+    }
+  },
+
+  async _doRenderMessages() {
+    if (!State.currentChat) return;
+    const container = $('messages');
+    for (const u of State.objectUrls) URL.revokeObjectURL(u);
+    State.objectUrls.clear();
+    container.innerHTML = '';
+
+    const msgs = await Messages.loadConversation(State.currentChat.uid);
+    const shared = await Crypto.deriveShared(State.privKey, State.currentChat.publicKey);
+
+    let lastDate = '';
+    for (const m of msgs) {
+      const dateStr = fmtDate(m.ts);
+      if (dateStr !== lastDate) {
+        const sep = document.createElement('div');
+        sep.className = 'date-sep'; sep.textContent = dateStr;
+        container.appendChild(sep); lastDate = dateStr;
+      }
+      const isMine = m.from === State.user.uid;
+      const div = document.createElement('div');
+      div.className = 'msg ' + (isMine ? 'sent' : 'received');
+
+      if (m.ciphertext) {
+        try {
+          const txt = await Crypto.decryptText(shared, m.ciphertext);
+          div.appendChild(document.createTextNode(txt));
+        } catch {
+          div.textContent = '⚠️ No se pudo descifrar';
+        }
+      }
+
+      if (m.mediaId) {
+        const mediaWrap = document.createElement('div');
+        mediaWrap.className = 'media';
+        mediaWrap.innerHTML = '<div class="loading">🔒 Descifrando…</div>';
+        div.appendChild(mediaWrap);
+        (async () => {
+          try {
+            const media = await DB.get('media', m.mediaId);
+            if (!media) { mediaWrap.innerHTML = '<div class="loading">Archivo no disponible</div>'; return; }
+            const buf = await media.blob.arrayBuffer();
+            const ptBuf = await Crypto.decryptBlob(shared, buf);
+            const blob = new Blob([ptBuf], {type: m.mediaType || 'application/octet-stream'});
+            const url = URL.createObjectURL(blob);
+            State.objectUrls.add(url);
+            mediaWrap.innerHTML = '';
+            if ((m.mediaType||'').startsWith('image/')) {
+              const img = document.createElement('img');
+              img.src = url; img.alt = m.mediaName || 'imagen';
+              img.loading = 'lazy';
+              mediaWrap.appendChild(img);
+            } else if ((m.mediaType||'').startsWith('video/')) {
+              const v = document.createElement('video');
+              v.src = url; v.controls = true; v.preload = 'metadata';
+              mediaWrap.appendChild(v);
+            } else if ((m.mediaType||'').startsWith('audio/')) {
+              const a = document.createElement('audio');
+              a.src = url; a.controls = true;
+              mediaWrap.appendChild(a);
+            } else {
+              const a = document.createElement('a');
+              a.href = url; a.download = m.mediaName || 'archivo';
+              a.textContent = '📎 ' + (m.mediaName || 'descargar');
+              mediaWrap.appendChild(a);
+            }
+          } catch(e) {
+            mediaWrap.innerHTML = '<div class="loading">⚠️ No se pudo descifrar</div>';
+          }
+        })();
+      }
+
+      const time = document.createElement('div');
+      time.className = 'msg-time';
+      time.textContent = fmtTime(m.ts) + (isMine ? (m.delivered ? ' ✓✓' : ' ✓') : '');
+      div.appendChild(time);
+
+      container.appendChild(div);
+    }
+    container.scrollTop = container.scrollHeight;
+  }
+};
+
+/* ==================================================================
+   12. INIT
+   ================================================================== */
+async function initApp() {
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      $('loginForm').style.display    = tab === 'login'    ? 'flex' : 'none';
+      $('registerForm').style.display = tab === 'register' ? 'flex' : 'none';
+    };
+  });
+
+  $('loginBtn').onclick = async () => {
+    const email = $('loginEmail').value.trim();
+    const pass  = $('loginPassword').value;
+    const btn = $('loginBtn'); const err = $('loginError');
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Entrando…';
+    try {
+      await Auth.login(email, pass);
+      await startSession();
+    } catch (e) { err.textContent = e.message; }
+    finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+  };
+
+  $('registerBtn').onclick = async () => {
+    const u = $('regUsername').value.trim();
+    const e = $('regEmail').value.trim();
+    const p = $('regPassword').value;
+    const btn = $('registerBtn'); const err = $('registerError');
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+      await Auth.register(u, e, p);
+      await startSession();
+    } catch (err2) { err.textContent = err2.message; }
+    finally { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
+  };
+
+  $('loginPassword').addEventListener('keydown', e => { if (e.key==='Enter') $('loginBtn').click(); });
+  $('regPassword').addEventListener('keydown', e => { if (e.key==='Enter') $('registerBtn').click(); });
+
+  document.querySelectorAll('.modal').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+  });
+
+  if ('serviceWorker' in navigator) {
+    try { await navigator.serviceWorker.register('sw.js'); } catch(_){}
+  }
+
+  const restored = await Auth.restore();
+  if (restored === 'needs_password') {
+    const accounts = await DB.getAll('accounts');
+    const acc = accounts.find(a => a.uid === localStorage.getItem('sc_session'));
+    if (acc) { $('loginEmail').value = acc.email; $('loginPassword').focus(); }
+  }
+}
+
+async function startSession() {
+  $('authScreen').style.display = 'none';
+  $('appScreen').style.display = 'flex';
+  $('myName').textContent = State.user.username;
+  $('myAvatar').textContent = (State.user.username[0]||'?').toUpperCase();
+
+  await Contacts.loadAll();
+  UI.renderContacts();
+
+  Peer.init();
+  Nostr.init().catch(()=>{});
+
+  const tryUpdateStatus = () => {
+    const online = State.peerReady;
+    $('myStatus').textContent = online
+      ? 'En línea · P2P' + (Nostr.ready ? ' + Relay' : '')
+      : 'Conectando…';
+  };
+  tryUpdateStatus();
+  const statusLoop = setInterval(tryUpdateStatus, 4000);
+  setTimeout(() => clearInterval(statusLoop), 60000);
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>
